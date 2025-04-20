@@ -11,15 +11,18 @@ from langchain.chains import RetrievalQA
 from langchain.llms import Ollama
 from langchain.prompts import PromptTemplate
 
-
 class ChatPDF:
-    def __init__(self, persist_directory="data/chroma"):
+    def __init__(self, persist_directory="data/chroma", model_name="llama3"):
         self.persist_directory = persist_directory
+
         self.embedding = OllamaEmbeddings(
-            model="nomic-embed-text", base_url="http://host.docker.internal:11434"
+            model="nomic-embed-text",
+            base_url="http://host.docker.internal:11434"
         )
+
         self.llm = Ollama(
-            model="mistral", base_url="http://host.docker.internal:11434"
+            model=model_name,
+            base_url="http://host.docker.internal:11434"
         )
 
         self.prompt = PromptTemplate.from_template(
@@ -67,11 +70,11 @@ class ChatPDF:
         for filename in os.listdir(folder_path):
             path = os.path.join(folder_path, filename)
             try:
-                if filename.endswith(".md") or filename.endswith(".txt"):
+                if filename.endswith((".md", ".txt")):
                     loader = TextLoader(path, encoding="utf-8")
                 elif filename.endswith(".pdf"):
                     loader = PyMuPDFLoader(path)
-                elif filename.endswith(".docx") or filename.endswith(".doc"):
+                elif filename.endswith((".doc", ".docx")):
                     loader = UnstructuredWordDocumentLoader(path)
                 else:
                     continue

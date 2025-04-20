@@ -29,15 +29,30 @@ def page():
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
-    if "assistant" not in st.session_state:
-        st.session_state["assistant"] = ChatPDF(persist_directory="data/chroma")
-        st.session_state["messages"].append(("Archivos de preentrenamiento cargados.", False))
+    st.title("🩺 MediCS - Tu Asistente Médico Inteligente")
 
-    st.header("🩺 MediCS Tu Asistente Personal Médico")
+    model_name = st.selectbox("Selecciona el modelo LLM:", ["llama3", "mistral"])
+
+    if (
+        "assistant" not in st.session_state
+        or st.session_state.get("current_model") != model_name
+    ):
+        st.session_state["assistant"] = ChatPDF(
+            persist_directory="data/chroma", model_name=model_name
+        )
+        st.session_state["current_model"] = model_name
+
+    # Estado del modelo actual
+    with st.sidebar:
+        st.markdown("### ⚙️ Estado")
+        st.markdown(f"**Modelo en uso:** `{st.session_state['current_model']}`")
+        st.markdown("**Archivos de preentrenamiento:** ✅ Cargados")
+        st.markdown("---")
+        st.markdown("Puedes subir archivos PDF, Word o Markdown para seguir preguntando.")
 
     uploaded_files = st.file_uploader(
-        "📂 Sube un archivo ",
-        type=["pdf", "docx", "doc"],
+        "📂 Sube un archivo (.pdf, .docx, .doc, .md, .txt)",
+        type=["pdf", "docx", "doc", "md", "txt"],
         accept_multiple_files=True,
         key="uploaded_files",
         on_change=read_and_save_file,
@@ -62,3 +77,4 @@ def page():
 
 if __name__ == "__main__":
     page()
+    
