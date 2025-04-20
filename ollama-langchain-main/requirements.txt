@@ -1,0 +1,11 @@
+streamlit
+langchain
+langchain-community
+chromadb
+pypdf
+fastembed
+tqdm
+unstructured
+pymupdf
+python-docx
+nomic
