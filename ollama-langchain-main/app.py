@@ -7,7 +7,7 @@ st.set_page_config(page_title="MediCS")
 
 # Elimina tokens como [INST], <s>, etc.
 def clean_response(text):
-    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]"]
+    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]"]
     for token in tokens_to_remove:
         text = text.replace(token, "")
     return text.strip()
@@ -51,8 +51,8 @@ def page():
         st.markdown("---")
         st.markdown("📂 Puedes subir archivos para seguir preguntando.")
         uploaded_files = st.file_uploader(
-            "Sube un archivo (.pdf, .docx, .doc, .md, .txt)",
-            type=["pdf", "docx", "doc", "md", "txt"],
+            "Sube un archivo (.pdf, .docx, .doc, .md)",
+            type=["pdf", "docx", "doc", "md"],
             accept_multiple_files=True,
             key="uploaded_files",
             on_change=read_and_save_file,
@@ -90,5 +90,6 @@ def page():
 
 if __name__ == "__main__":
     page()
+
 
     
