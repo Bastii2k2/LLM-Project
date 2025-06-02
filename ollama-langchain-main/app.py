@@ -5,6 +5,13 @@ from chat_pdf import ChatPDF
 
 st.set_page_config(page_title="MediCS")
 
+# Elimina tokens como [INST], <s>, etc.
+def clean_response(text):
+    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]"]
+    for token in tokens_to_remove:
+        text = text.replace(token, "")
+    return text.strip()
+
 def display_messages():
     st.subheader("Chat")
     for msg, is_user in st.session_state["messages"]:
@@ -31,7 +38,25 @@ def page():
 
     st.title("🩺 MediCS - Tu Asistente Médico Inteligente")
 
-    model_name = st.selectbox("Selecciona el modelo LLM:", ["llama3", "mistral"])
+    # 📚 Barra lateral: modelo + subida de archivo
+    with st.sidebar:
+        st.markdown("### ⚙️ Configuración")
+
+        # Selección de modelo
+        model_name = st.selectbox("Selecciona el modelo LLM:", ["llama3", "mistral"])
+        st.markdown(f"**Modelo en uso:** `{model_name}`")
+        st.markdown("**Archivos de preentrenamiento:** ✅ Cargados")
+
+        # Subida de archivo
+        st.markdown("---")
+        st.markdown("📂 Puedes subir archivos para seguir preguntando.")
+        uploaded_files = st.file_uploader(
+            "Sube un archivo (.pdf, .docx, .doc, .md)",
+            type=["pdf", "docx", "doc", "md"],
+            accept_multiple_files=True,
+            key="uploaded_files",
+            on_change=read_and_save_file,
+        )
 
     if (
         "assistant" not in st.session_state
@@ -42,30 +67,18 @@ def page():
         )
         st.session_state["current_model"] = model_name
 
-    # Estado del modelo actual
-    with st.sidebar:
-        st.markdown("### ⚙️ Estado")
-        st.markdown(f"**Modelo en uso:** `{st.session_state['current_model']}`")
-        st.markdown("**Archivos de preentrenamiento:** ✅ Cargados")
-        st.markdown("---")
-        st.markdown("Puedes subir archivos PDF, Word o Markdown para seguir preguntando.")
-
-    uploaded_files = st.file_uploader(
-        "📂 Sube un archivo (.pdf, .docx, .doc, .md, .txt)",
-        type=["pdf", "docx", "doc", "md", "txt"],
-        accept_multiple_files=True,
-        key="uploaded_files",
-        on_change=read_and_save_file,
-    )
-
+    # Spinner para carga
     st.session_state["ingestion_spinner"] = st.empty()
 
+    # Mostrar historial de conversación
     display_messages()
 
+    # Entrada de usuario
     user_input = st.chat_input("Haz tu pregunta:")
     if user_input:
         with st.spinner("Pensando..."):
             response = st.session_state["assistant"].ask(user_input)
+            response = clean_response(response)
 
         st.session_state["messages"].append((user_input, True))
         st.session_state["messages"].append((response, False))
@@ -77,4 +90,6 @@ def page():
 
 if __name__ == "__main__":
     page()
+
+
     
