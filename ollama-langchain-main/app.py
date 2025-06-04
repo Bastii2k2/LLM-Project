@@ -2,35 +2,57 @@ import os
 import tempfile
 import streamlit as st
 from chat_pdf import ChatPDF
+from image_ingestion import ImageProcessor
 
-st.set_page_config(page_title="MediCS")
+st.set_page_config(page_title="🩺 MediCS - Tu Asistente Médico Inteligente")
 
-# Elimina tokens como [INST], <s>, etc.
 def clean_response(text):
-    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]"]
+    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]", "</INST>"]
     for token in tokens_to_remove:
         text = text.replace(token, "")
     return text.strip()
 
 def display_messages():
+    """Muestra el historial de conversación."""
     st.subheader("Chat")
     for msg, is_user in st.session_state["messages"]:
         with st.chat_message("user" if is_user else "assistant"):
             st.markdown(msg)
     st.session_state["thinking_spinner"] = st.empty()
 
-def read_and_save_file():
+def process_uploaded_files():
+    """Procesa archivos subidos sin repetir mensajes anteriores."""
     uploaded_files = st.session_state.get("uploaded_files", [])
+    
+    if "processed_files" not in st.session_state:
+        st.session_state["processed_files"] = set()  # Guardará archivos ya procesados
+
+    nuevos_mensajes = []
+
     for file in uploaded_files:
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            tf.write(file.getbuffer())
-            file_path = tf.name
+        if file.name in st.session_state["processed_files"]:
+            continue  # Evita procesar archivos duplicados
 
-        with st.session_state["ingestion_spinner"], st.spinner(f"Ingestando {file.name}..."):
-            st.session_state["assistant"].ingest(file_path, file.name)
+        ext = file.name.split(".")[-1].lower()
+        st.session_state["processed_files"].add(file.name)  # Registra el archivo procesado
 
-        os.remove(file_path)
-        st.session_state["messages"].append((f"📂 Documento {file.name} cargado.", False))
+        if ext in ["png", "jpg", "jpeg"]:
+            with st.spinner(f"Procesando imagen {file.name}..."):
+                st.session_state["image_processor"].ingest_image(file)
+            nuevos_mensajes.append((f"🖼️ Imagen {file.name} procesada y almacenada.", False))
+
+        elif ext in ["pdf", "docx", "doc", "md", "txt"]:
+            with st.spinner(f"Ingestando documento {file.name}..."):
+                with tempfile.NamedTemporaryFile(delete=False) as tf:
+                    tf.write(file.getbuffer())
+                    file_path = tf.name
+                st.session_state["assistant"].ingest(file_path, file.name)
+                os.remove(file_path)
+            nuevos_mensajes.append((f"📂 Documento {file.name} cargado.", False))
+
+    # Agregar solo los nuevos mensajes, evitando duplicación
+    st.session_state["messages"].extend(nuevos_mensajes)
+
 
 def page():
     if "messages" not in st.session_state:
@@ -38,36 +60,34 @@ def page():
 
     st.title("🩺 MediCS - Tu Asistente Médico Inteligente")
 
-    # 📚 Barra lateral: modelo + subida de archivo
+    # 📚 Barra lateral: modelo + subida de archivos
     with st.sidebar:
         st.markdown("### ⚙️ Configuración")
 
-        # Selección de modelo
         model_name = st.selectbox("Selecciona el modelo LLM:", ["llama3", "mistral"])
         st.markdown(f"**Modelo en uso:** `{model_name}`")
         st.markdown("**Archivos de preentrenamiento:** ✅ Cargados")
 
-        # Subida de archivo
+        # Subida de archivos (documentos e imágenes en un solo uploader)
         st.markdown("---")
-        st.markdown("📂 Puedes subir archivos para seguir preguntando.")
+        st.markdown("📂 Puedes subir documentos e imágenes para análisis.")
+
         uploaded_files = st.file_uploader(
-            "Sube un archivo (.pdf, .docx, .doc, .md)",
-            type=["pdf", "docx", "doc", "md"],
+            "Sube archivos (.pdf, .docx, .doc, .md, .txt, .png, .jpg, .jpeg)",
+            type=["pdf", "docx", "doc", "md", "txt", "png", "jpg", "jpeg"],
             accept_multiple_files=True,
             key="uploaded_files",
-            on_change=read_and_save_file,
+            on_change=process_uploaded_files,
         )
 
-    if (
-        "assistant" not in st.session_state
-        or st.session_state.get("current_model") != model_name
-    ):
+    if "assistant" not in st.session_state or st.session_state.get("current_model") != model_name:
         st.session_state["assistant"] = ChatPDF(
             persist_directory="data/chroma", model_name=model_name
         )
+        st.session_state["image_processor"] = ImageProcessor(st.session_state["assistant"].vectorstore)
         st.session_state["current_model"] = model_name
 
-    # Spinner para carga
+    # Spinner de carga
     st.session_state["ingestion_spinner"] = st.empty()
 
     # Mostrar historial de conversación
@@ -90,6 +110,3 @@ def page():
 
 if __name__ == "__main__":
     page()
-
-
-    

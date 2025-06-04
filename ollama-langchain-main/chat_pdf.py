@@ -4,7 +4,7 @@ from langchain.embeddings import OllamaEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import (
     TextLoader,
-    PyMuPDFLoader,
+    PDFMinerLoader,
     UnstructuredWordDocumentLoader,
 )
 from langchain.chains import RetrievalQA
@@ -28,12 +28,11 @@ class ChatPDF:
         self.prompt = PromptTemplate.from_template(
             """
             <s>[INST] 
-            Eres un asistente médico experto. Responde preguntas clínicas, científicas o relacionadas con la salud basándote únicamente en el contexto proporcionado.
+            Eres un asistente médico experto. Responde preguntas clínicas, científicas, de recetas médicas o relacionadas con la salud basándote únicamente en el contexto proporcionado.
 
-            Si la información no está en el contexto, responde de forma honesta: 
-            "No tengo suficiente información en los documentos para responder con precisión."
+            Si la información no está en el contexto, proporciona un **mini resumen** de lo que sí está disponible. Describe antecedentes clínicos relevantes, condiciones conocidas y factores de riesgo . No te limites a decir que falta información.
 
-            Usa lenguaje claro, preciso y profesional. Si es posible, incluye causas, síntomas o mecanismos relevantes, pero sin inventar datos.
+            Usa un lenguaje claro, preciso y profesional. Siempre intenta ofrecer **interpretaciones clínicas útiles** basadas en los datos disponibles. Si es posible, incluye causas, síntomas o mecanismos relevantes **sin inventar datos**.
 
             Mantén las respuestas detalladas, útiles y sin alucinaciones.
 
@@ -73,27 +72,25 @@ class ChatPDF:
                 if filename.endswith((".md", ".txt")):
                     loader = TextLoader(path, encoding="utf-8")
                 elif filename.endswith(".pdf"):
-                    loader = PyMuPDFLoader(path)
+                    loader = PDFMinerLoader(path)
                 elif filename.endswith((".doc", ".docx")):
                     loader = UnstructuredWordDocumentLoader(path)
                 else:
                     continue
 
                 docs.extend(loader.load())
-                print(f"Precargado: {filename}")
             except Exception as e:
                 print(f"Error en {filename}: {e}")
 
         if docs:
             self._split_and_store(docs)
-            print(f"Total documentos precargados: {len(docs)}")
 
     def ingest(self, file_path, original_filename=None):
         ext = (original_filename or file_path).split(".")[-1].lower()
         if ext in ["md", "txt"]:
             loader = TextLoader(file_path, encoding="utf-8")
         elif ext == "pdf":
-            loader = PyMuPDFLoader(file_path)
+            loader = PDFMinerLoader(file_path)
         elif ext in ["doc", "docx"]:
             loader = UnstructuredWordDocumentLoader(file_path)
         else:
@@ -103,4 +100,12 @@ class ChatPDF:
         self._split_and_store(docs)
 
     def ask(self, question):
-        return self.qa_chain.run(question)
+        full_response = self.qa_chain.run(question)
+        
+        # Filtrar solo la respuesta eliminando contexto y pregunta
+        if "Respuesta:" in full_response:
+            response = full_response.split("Respuesta:")[-1].strip()
+        else:
+            response = full_response.strip()
+
+        return response

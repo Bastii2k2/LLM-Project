@@ -9,3 +9,7 @@ unstructured
 pymupdf
 python-docx
 nomic
+pytesseract 
+pillow
+ollama
+pdfminer.six
