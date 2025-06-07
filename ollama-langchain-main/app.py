@@ -7,7 +7,7 @@ from image_ingestion import ImageProcessor
 st.set_page_config(page_title="🩺 MediCS - Tu Asistente Médico Inteligente")
 
 def clean_response(text):
-    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]", "</INST>"]
+    tokens_to_remove = ["<s>", "</s>", "[INST]", "[/INST]", "[S]", "[/S]", "[s]", "</INST>","[/RESP]"]
     for token in tokens_to_remove:
         text = text.replace(token, "")
     return text.strip()
